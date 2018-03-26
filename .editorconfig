@@ -1,0 +1,25 @@
+root = true
+
+[*]
+quote_type = single
+indent_style = space
+indent_size = 2
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{html,marko}]
+indent_style = tab
+indent_size = 4
+
+[*.{json}]
+quote_type = double
+indent_style = space
+indent_size = 2
+
+[package.json]
+indent_style = space
+indent_size = 2

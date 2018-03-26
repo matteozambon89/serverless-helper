@@ -1,0 +1,35 @@
+{
+  "extends": [
+    "trails"
+  ],
+  "plugins": [
+    "import",
+    "json",
+    "markdown",
+    "mocha",
+    "node",
+    "promise",
+    "standard"
+  ],
+  "globals": {
+    "test": true
+  },
+  "rules": {
+    "brace-style": [
+      "warn",
+      "stroustrup",
+      {
+        "allowSingleLine": true
+      }
+    ],
+    "linebreak-style": [
+      "error",
+      "unix"
+    ],
+    "no-console": 0,
+    "semi": [
+      "error",
+      "never"
+    ]
+  }
+}
