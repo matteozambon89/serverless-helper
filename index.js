@@ -2,7 +2,7 @@
  * @Author: Matteo Zambon <Matteo>
  * @Date:   2018-03-23 10:36:15
  * @Last modified by:   Matteo
- * @Last modified time: 2018-03-26 08:44:37
+ * @Last modified time: 2018-03-27 12:31:04
  */
 
 'use strict'
@@ -43,8 +43,15 @@ const winston = require('winston')
  */
 require('winston-loggly-bulk')
 
-const Lib = function(pkg, config) {
-  this.config = config || {}
+const Lib = function(pkg, data) {
+  this.config = {}
+
+  for (const k in data) {
+    this[k] = data[k]
+  }
+
+  // env-var alias
+  this.getEnv = env.get
 
   // Package - Name
   this.name = pkg.name
@@ -53,17 +60,39 @@ const Lib = function(pkg, config) {
   // NODE_ENV
   this.env = env.get('NODE_ENV', 'unknown').asString()
 
-  // Winston
-  this.config.logLevel = this.config.logLevel || env.get('LOG_LEVEL', 'verbose').asString()
-  this.config.loggly = this.config.loggly || env.get('LOGGLY', 'false').asBool()
-  this.setupWinston()
+  // Config - LOG_LEVEL
+  this.config.logLevel = this.config.logLevel ||
+    env.get('LOG_LEVEL', 'verbose').asString()
+  // Config - LOGGLY
+  this.config.loggly = this.config.loggly ||
+    env.get('LOGGLY', 'false').asBool()
+  // Config - AIRBRAKE
+  this.config.airbrake = this.config.airbrake ||
+    env.get('AIRBRAKE', 'false').asBool()
+  // Config - AIRBRAKE_PROJECT_ID
+  this.config.airbrakeProjectId = this.config.airbrakeProjectId ||
+    env.get('AIRBRAKE_PROJECT_ID', '').asString()
+  // Config - AIRBRAKE_PROJECT_KEY
+  this.config.airbrakeProjectKey = this.config.airbrakeProjectKey ||
+    env.get('AIRBRAKE_PROJECT_KEY', '').asString()
+
+  // Schema - default is Joi
+  if (!this.schema) {
+    this.schema = Joi
+  }
+
+  // Error - default is Boom
+  if (!this.error) {
+    this.error = Boom
+  }
+
+  // Logger - default is Winston
+  if (!this.logger) {
+    this.setupWinston()
+  }
 
   // Airbrake
-  this.config.airbrake = this.config.airbrake || env.get('AIRBRAKE', 'false').asBool()
   this.setupAirbrake()
-
-  // Boom
-  this.error = Boom
 }
 Lib.safeJson = function(obj) {
   if (!obj) {
@@ -156,9 +185,19 @@ Lib.prototype.setupAirbrake = function() {
   const AirbrakeClient = require('airbrake-js')
 
   lib.airbrake = new AirbrakeClient({
-    projectId: env.get('AIRBRAKE_PROJECT_ID').required().asString(),
-    projectKey: env.get('AIRBRAKE_PROJECT_KEY').required().asString(),
+    projectId: lib.config.airbrakeProjectId,
+    projectKey: lib.config.airbrakeProjectKey,
   })
+}
+Lib.prototype.isEnv = function(env) {
+  const lib = this
+
+  return lib.env === env
+}
+Lib.prototype.isTest = function() {
+  const lib = this
+
+  return lib.env === 'test'
 }
 Lib.prototype.isDevelopment = function() {
   const lib = this
@@ -236,7 +275,7 @@ Lib.prototype.fail = function(err, args, cb) {
 Lib.prototype.schemaValidate = function(data, schema) {
   const lib = this
 
-  const result = Joi.validate(data, schema)
+  const result = lib.schema.validate(data, schema)
 
   if (result.error) {
     const err = lib.error.badRequest(result.error.message, result.error)
