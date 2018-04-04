@@ -60,6 +60,9 @@ const Lib = function(pkg, data) {
   // NODE_ENV
   this.env = env.get('NODE_ENV', 'unknown').asString()
 
+  // Config - On Local Machine
+  this.config.onLocal = this.config.onLocal ||
+    env.get('ON_LOCAL', 'false').asBool()
   // Config - LOG_LEVEL
   this.config.logLevel = this.config.logLevel ||
     env.get('LOG_LEVEL', 'verbose').asString()
@@ -113,7 +116,7 @@ Lib.prototype.setupWinston = function() {
     'humanReadableUnhandledException': true,
     'handleExceptions': true,
     'json': false,
-    'colorize': true,
+    'colorize': lib.config.onLocal, // colorize just on local machine
     'prettyPrint': true,
   })]
 
@@ -243,14 +246,6 @@ Lib.prototype.fail = function(err, args, cb) {
     Boom.boomify(err, args)
   }
 
-  lib.airbrake.notify(err)
-    .then(function(notice) {
-      lib.logger.log('verbose', '[Airbrake] Notice id', {notice: Lib.safeJson(notice)})
-    })
-    .catch(function(err) {
-      lib.logger.log('error', '[Airbrake] Notice error', {err: Lib.safeJson(err)})
-    })
-
   // Create output object for lib.respond
   const output = err.output
   output.payload = output.payload || {}
@@ -270,7 +265,19 @@ Lib.prototype.fail = function(err, args, cb) {
 
   lib.logger.log('verbose', 'Fail with error', {output: Lib.safeJson(output)})
 
-  return lib.respond(output, cb)
+  // Wait for Airbrake before responding
+
+  lib.airbrake.notify(err)
+    .then(function(notice) {
+      lib.logger.log('verbose', '[Airbrake] Notice id', {notice: Lib.safeJson(notice)})
+
+      return lib.respond(output, cb)
+    })
+    .catch(function(err) {
+      lib.logger.log('verbose', '[Airbrake] Notice error', {err: Lib.safeJson(err)})
+
+      return lib.respond(output, cb)
+    })
 }
 Lib.prototype.schemaValidate = function(data, schema) {
   const lib = this

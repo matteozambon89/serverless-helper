@@ -40,6 +40,7 @@ var lib = require('serverless-helper')(pkg, [opts]);
 
 | lib.config. | via opts.config Object | via process.env | type | default |
 |:--- |:--- |:--- |:--- |:--- |
+| **onLocal** | onLocal | *ON_LOCAL* | boolean | `false` |
 | **logLevel** | logLevel | *LOG_LEVEL* | string | `'verbose'` |
 | **loggly** | loggly | *LOGGLY* | boolean | `false` |
 | **airbrake** | airbrake | *AIRBRAKE* | boolean | `false` |
