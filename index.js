@@ -2,7 +2,7 @@
  * @Author: Matteo Zambon <Matteo>
  * @Date:   2018-03-23 10:36:15
  * @Last modified by:   Matteo
- * @Last modified time: 2018-03-27 12:31:04
+ * @Last modified time: 2018-04-10 03:04:14
  */
 
 'use strict'
@@ -103,6 +103,9 @@ Lib.safeJson = function(obj) {
   }
 
   return JSON.parse(JSON.stringify(obj))
+}
+Lib.prototype.logJson = function(obj) {
+  return Lib.safeJson(obj)
 }
 Lib.prototype.setupWinston = function() {
   const lib = this
@@ -291,6 +294,100 @@ Lib.prototype.schemaValidate = function(data, schema) {
   }
 
   return Promise.resolve(result.value)
+}
+Lib.prototype.prepare = function(opts, cb) {
+  const lib = this
+
+  // Expect Promise
+  const expectPromise = opts.expectPromise || false
+  // Respond After
+  const respondAfter = opts.respondAfter || false
+  // Event Schema
+  const eventSchema = opts.eventSchema || null
+  // Context Schema
+  const contextSchema = opts.contextSchema || null
+  // Body Parser
+  const bodyParser = opts.bodyParser || null
+  // AWS callbackWaitsForEmptyEventLoop
+  const forcedResponse = opts.forcedResponse || false
+
+  return (event, context, callback) => {
+    context.callbackWaitsForEmptyEventLoop = forcedResponse
+
+    if (_.isString(bodyParser) && bodyParser === 'json') {
+      event.body = _.isString(event.body) ? JSON.parse(event.body) : event.body
+    }
+    // TODO: add more bodyparsers
+
+    const promises = []
+
+    if (eventSchema) {
+      promises.push(lib.schemaValidate.bind(lib)(event, eventSchema))
+    }
+    else {
+      promises.push(Promise.resolve(event))
+    }
+
+    if (contextSchema) {
+      promises.push(lib.schemaValidate.bind(lib)(context, contextSchema))
+    }
+    else {
+      promises.push(Promise.resolve(context))
+    }
+
+    if (expectPromise) {
+      return Promise.all(promises)
+        .then((parsed) => {
+          const eventParsed = parsed[0]
+          const contextParsed = parsed[1]
+
+          return Promise.resolve({
+            event: eventParsed,
+            context: contextParsed,
+            callback: callback
+          })
+        })
+        .catch((err) => {
+          lib.logger.log('error', 'Promise catched error', {
+            error: err,
+          })
+          lib.fail(err, {}, callback)
+        })
+    }
+    else if (respondAfter) {
+      Promise.all(promises)
+        .then((parsed) => {
+          const eventParsed = parsed[0]
+          const contextParsed = parsed[1]
+
+          return cb(eventParsed, contextParsed, callback)
+        })
+        .then((result) => {
+          lib.respond(result, callback)
+        })
+        .catch((err) => {
+          lib.logger.log('error', 'Promise catched error', {
+            error: err,
+          })
+          lib.fail(err, {}, callback)
+        })
+    }
+    else {
+      Promise.all(promises)
+        .then((parsed) => {
+          const eventParsed = parsed[0]
+          const contextParsed = parsed[1]
+
+          cb(eventParsed, contextParsed, callback)
+        })
+        .catch((err) => {
+          lib.logger.log('error', 'Promise catched error', {
+            error: err,
+          })
+          lib.fail(err, {}, callback)
+        })
+    }
+  }
 }
 
 module.exports = function(pkg, config) {

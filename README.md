@@ -9,6 +9,7 @@ Deploy flow using GIT and SemVer
 ## Dependencies
 
 - Serverless
+- AWS
 
 ## How to Use
 
@@ -18,8 +19,88 @@ Deploy flow using GIT and SemVer
  * @type {object}
  */
 var pkg = require('./package.json');
-
+/**
+ * Serverless Helper
+ * @type {object}
+ */
 var lib = require('serverless-helper')(pkg, [opts]);
+/**
+ * Serverless Helper Schema
+ * @type {object}
+ */
+var schema = lib.schema;
+
+// Standard
+
+// Prepare packs most of the startup logic
+// Any thrown/uncaught exception will be automatically logged
+module.exports = lib.prepare({
+  // Event Schema Validation
+  eventSchema: schema.object().keys({
+    // Query String Validation
+    queryStringParameters: schema.object()
+      .keys({
+        foo: schema.string().required(true),
+      })
+      .requiredKeys('foo')
+      .unknown(true)
+    })
+    .requiredKeys('queryStringParameters')
+    .unknown(true)
+},
+// Your logic goes inside this function
+function(event, context, callback) {
+  // Get parameter from event after being parsed
+  const foo = event.queryStringParameters.foo
+
+  // Context will be raw since no contextSchema has been passed
+
+  // ...
+
+  // Respond with 200
+  lib.respond({
+    message: 'Hello ' + foo
+  }, callback);
+});
+
+// Promisified
+
+// Prepare packs most of the startup logic
+// Any thrown/uncaught exception will be automatically logged
+module.exports = lib.prepare({
+  // Promisify
+  expectPromise: true
+  // Event Schema Validation
+  eventSchema: schema.object().keys({
+    // Query String Validation
+    queryStringParameters: schema.object()
+      .keys({
+        foo: schema.string().required(true),
+      })
+      .requiredKeys('foo')
+      .unknown(true)
+    })
+    .requiredKeys('queryStringParameters')
+    .unknown(true)
+})
+// Your logic goes inside this function
+.then(function(data) {
+  const event = data.event
+  const context = data.context
+  const callback = data.callback
+
+  // Get parameter from event after being parsed
+  const foo = event.queryStringParameters.foo
+
+  // Context will be raw since no contextSchema has been passed
+
+  // ...
+
+  // Respond with 200
+  lib.respond({
+    message: 'Hello ' + foo
+  }, callback);
+});
 ```
 
 ### Opts
@@ -73,6 +154,7 @@ lib.isProduction() // (process.env.NODE_ENV === 'production')
 ```
 lib.logger // new (winston.Logger)(options)
 lib.logger.log // (new (winston.Logger)(options)).log
+lib.logJson // obj ? JSON.parse(JSON.stringify(obj)) : obj
 ```
 ### Hook to Airbrake
 
@@ -144,6 +226,21 @@ More info
 lib.schema // JOI
 lib.schemaValidate(data, schema) // Promise.reject(Boom.badRequest) || Promise.resolve(joiResult.value)
 ```
+
+### Middlewares
+
+```
+lib.prepare(opts[, cb]) // function(event, context, callback){}
+```
+
+- **cb** as `function` (handler function)
+- **opts** as `object`
+- **opts.[expectPromise]** as `boolean` (default `false`, **cb** won't be called and instead `.then` will need to be used)
+- **opts.[respondAfter]** as `boolean` (default `false`, **cb** must be a promise)
+- **opts.[eventSchema]** as `lib.schema.*` (schema to validate `event` or `null`)
+- **opts.[contextSchema]** as `lib.schema` (schema to validate `context` or `null`)
+- **opts.[bodyParser]** as `string` ('json' or `null`)
+- **opts.[forcedResponse]** as `boolean` (to set context.callbackWaitsForEmptyEventLoop)
 
 ## TODO
 
