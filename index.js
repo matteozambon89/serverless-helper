@@ -2,7 +2,7 @@
  * @Author: Matteo Zambon <Matteo>
  * @Date:   2018-03-23 10:36:15
  * @Last modified by:   Matteo
- * @Last modified time: 2018-04-10 03:04:14
+ * @Last modified time: 2018-04-11 07:56:30
  */
 
 'use strict'
@@ -223,7 +223,7 @@ Lib.prototype.isProduction = function() {
 Lib.prototype.respond = function(output, cb) {
   const statusCode = output.statusCode || 200
   const headers = output.headers || {}
-  const body = JSON.stringify(output.payload)
+  const body = _.isString(output.payload) ? output.payload : JSON.stringify(output.payload)
 
   const resp = new Response(statusCode, headers, body)
 
